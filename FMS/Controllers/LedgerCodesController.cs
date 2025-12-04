@@ -2,9 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FMS.Data;
 using FMS.Models;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FMS.Controllers
 {
@@ -21,6 +19,7 @@ namespace FMS.Controllers
 
         // GET: api/ledgercodes
         [HttpGet]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<LedgerCode>>> GetLedgerCodes(
             [FromQuery] string category = null,
             [FromQuery] string fuelType = null,
@@ -47,6 +46,7 @@ namespace FMS.Controllers
 
         // GET: api/ledgercodes/categories
         [HttpGet("categories")]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<string>>> GetLedgerCodeCategories()
         {
             var categories = await _context.LedgerCodes
@@ -60,6 +60,7 @@ namespace FMS.Controllers
 
         // GET: api/ledgercodes/5
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<ActionResult<LedgerCode>> GetLedgerCode(int id)
         {
             var ledgerCode = await _context.LedgerCodes.FindAsync(id);
@@ -74,6 +75,7 @@ namespace FMS.Controllers
 
         // POST: api/ledgercodes
         [HttpPost]
+        [Authorize(Roles = "admin,manager")]
         public async Task<ActionResult<LedgerCode>> PostLedgerCode(LedgerCode ledgerCode)
         {
             if (!ModelState.IsValid)
@@ -92,6 +94,71 @@ namespace FMS.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetLedgerCode), new { id = ledgerCode.Id }, ledgerCode);
+        }
+
+        // PUT: api/ledgercodes/5
+        [HttpPut("{id}")]
+        [Authorize(Roles = "admin,manager")]
+        public async Task<IActionResult> PutLedgerCode(int id, LedgerCode ledgerCode)
+        {
+            if (id != ledgerCode.Id)
+            {
+                return BadRequest();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            // Check if code already exists (excluding current record)
+            if (await _context.LedgerCodes.AnyAsync(l => l.Code == ledgerCode.Code && l.Id != id))
+            {
+                return BadRequest("Ledger code already exists");
+            }
+
+            _context.Entry(ledgerCode).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!LedgerCodeExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
+        }
+
+        // DELETE: api/ledgercodes/5
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "admin,manager")]
+        public async Task<IActionResult> DeleteLedgerCode(int id)
+        {
+            var ledgerCode = await _context.LedgerCodes.FindAsync(id);
+            if (ledgerCode == null)
+            {
+                return NotFound();
+            }
+
+            // Soft delete - mark as inactive
+            ledgerCode.IsActive = false;
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        private bool LedgerCodeExists(int id)
+        {
+            return _context.LedgerCodes.Any(e => e.Id == id);
         }
     }
 }

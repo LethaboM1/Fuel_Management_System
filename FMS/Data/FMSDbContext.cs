@@ -19,38 +19,142 @@ namespace FMS.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configure indexes
-            modelBuilder.Entity<Transactions>(entity =>
-            {
-                entity.HasIndex(t => t.PlantNumber);
-                entity.HasIndex(t => t.TransactionDate);
-                entity.HasIndex(t => t.AttendantId);
-                entity.HasIndex(t => t.LedgerCode);
-            });
-
-            modelBuilder.Entity<Stock>(entity =>
-            {
-                entity.HasIndex(s => s.PlantId).IsUnique();
-            });
-
+            // Configure User entity
             modelBuilder.Entity<User>(entity =>
             {
-                entity.HasIndex(u => u.Email).IsUnique();
+                // Unique constraint on EmployeeNumber (REMOVED Email index)
+                entity.HasIndex(u => u.EmployeeNumber)
+                      .IsUnique()
+                      .HasDatabaseName("IX_Users_EmployeeNumber");
+                
+                entity.Property(u => u.EmployeeNumber)
+                      .IsRequired()
+                      .HasMaxLength(20);
+                
+                entity.Property(u => u.FullName)
+                      .IsRequired()
+                      .HasMaxLength(100);
+                
+                entity.Property(u => u.Role)
+                      .IsRequired()
+                      .HasMaxLength(50);
+                
+                entity.Property(u => u.Station)
+                      .IsRequired()
+                      .HasMaxLength(100);
+                
+                entity.Property(u => u.PasswordHash)
+                      .IsRequired();
+                
+                entity.Property(u => u.CreatedAt)
+                      .HasDefaultValueSql("GETUTCDATE()");
+                
+                entity.Property(u => u.IsActive)
+                      .HasDefaultValue(true);
+                
+                entity.Property(u => u.ResetToken)
+                      .HasMaxLength(100);
             });
 
+            // Configure Stock entity
+            modelBuilder.Entity<Stock>(entity =>
+            {
+                entity.HasIndex(s => s.PlantId)
+                      .IsUnique()
+                      .HasDatabaseName("IX_Stocks_PlantId");
+                
+                // Add other Stock configurations if needed
+                entity.Property(s => s.PlantId)
+                      .IsRequired()
+                      .HasMaxLength(50);
+                
+                entity.Property(s => s.PlantName)
+                      .IsRequired()
+                      .HasMaxLength(100);
+                
+                entity.Property(s => s.Category)
+                      .IsRequired()
+                      .HasMaxLength(50);
+                
+                entity.Property(s => s.FuelType)
+                      .HasMaxLength(20);
+                
+                entity.Property(s => s.Location)
+                      .HasMaxLength(200);
+                
+                entity.Property(s => s.LastUpdatedBy)
+                      .HasMaxLength(100);
+            });
+
+            // Configure LedgerCode entity
             modelBuilder.Entity<LedgerCode>(entity =>
             {
-                entity.HasIndex(l => l.Code).IsUnique();
-                entity.HasIndex(l => l.Category);
-                entity.HasIndex(l => l.IsActive);
+                entity.HasIndex(l => l.Code)
+                      .IsUnique()
+                      .HasDatabaseName("IX_LedgerCodes_Code");
+                
+                entity.HasIndex(l => l.Category)
+                      .HasDatabaseName("IX_LedgerCodes_Category");
+                
+                entity.HasIndex(l => l.IsActive)
+                      .HasDatabaseName("IX_LedgerCodes_IsActive");
+                
+                entity.Property(l => l.Code)
+                      .IsRequired()
+                      .HasMaxLength(50);
+                
+                entity.Property(l => l.Description)
+                      .IsRequired()
+                      .HasMaxLength(200);
+                
+                entity.Property(l => l.Category)
+                      .IsRequired()
+                      .HasMaxLength(50);
+                
+                entity.Property(l => l.FuelType)
+                      .HasMaxLength(20);
+                
+                entity.Property(l => l.CreatedAt)
+                      .HasDefaultValueSql("GETUTCDATE()");
             });
 
+            // Configure MeterReading entity
             modelBuilder.Entity<MeterReading>(entity =>
             {
-                entity.HasIndex(m => m.PlantNumber);
-                entity.HasIndex(m => m.ReadingDate);
-                entity.HasIndex(m => new { m.PlantNumber, m.ReadingDate });
+                entity.HasIndex(m => m.PlantNumber)
+                      .HasDatabaseName("IX_MeterReadings_PlantNumber");
+                
+                entity.HasIndex(m => m.ReadingDate)
+                      .HasDatabaseName("IX_MeterReadings_ReadingDate");
+                
+                entity.HasIndex(m => new { m.PlantNumber, m.ReadingDate })
+                      .HasDatabaseName("IX_MeterReadings_PlantNumber_ReadingDate");
+                
+                entity.Property(m => m.PlantNumber)
+                      .IsRequired()
+                      .HasMaxLength(50);
+                
+                entity.Property(m => m.Unit)
+                      .IsRequired()
+                      .HasMaxLength(20);
+                
+                entity.Property(m => m.ReadingType)
+                      .IsRequired()
+                      .HasMaxLength(50);
+                
+                entity.Property(m => m.TakenBy)
+                      .IsRequired()
+                      .HasMaxLength(100);
+                
+                entity.Property(m => m.CreatedAt)
+                      .HasDefaultValueSql("GETUTCDATE()");
             });
+
+            // Configure Transactions entity (if you have one)
+            // modelBuilder.Entity<Transactions>(entity =>
+            // {
+            //     // Add your Transactions configuration here
+            // });
 
             // Seed initial data
             SeedData(modelBuilder);
@@ -60,13 +164,13 @@ namespace FMS.Data
         {
             var seedDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-            // Seed initial users
+            // Seed initial users - FIXED: Removed duplicate EmployeeNumber
             modelBuilder.Entity<User>().HasData(
                 new User
                 {
                     Id = 1,
                     FullName = "Admin User",
-                    Email = "admin@fms.com",
+                    EmployeeNumber = "1001", // Changed from "1234" to unique value
                     Role = "admin",
                     Station = "Main Depot",
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
@@ -77,7 +181,7 @@ namespace FMS.Data
                 {
                     Id = 2,
                     FullName = "Attendant User",
-                    Email = "attendant@fms.com",
+                    EmployeeNumber = "1002", // Changed from "1234" to unique value
                     Role = "attendant",
                     Station = "Main Depot",
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("attendant123"),
