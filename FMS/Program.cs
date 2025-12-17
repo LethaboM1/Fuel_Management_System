@@ -1,62 +1,172 @@
-// using Microsoft.AspNetCore.Authentication.JwtBearer;
+// // using Microsoft.AspNetCore.Authentication.JwtBearer;
+// // using Microsoft.EntityFrameworkCore;
+// // using Microsoft.IdentityModel.Tokens;
+// // using Microsoft.OpenApi.Models;
+// // using System.Text;
+// // using FMS.Data;
+
+// // var builder = WebApplication.CreateBuilder(args);
+
+// // // Add services to the container
+// // builder.Services.AddControllers();
+// // builder.Services.AddEndpointsApiExplorer();
+
+// // // Configure Swagger/OpenAPI
+// // builder.Services.AddSwaggerGen(c =>
+// // {
+// //     c.SwaggerDoc("v1", new OpenApiInfo { 
+// //         Title = "Fuel Management System API", 
+// //         Version = "v1",
+// //         Description = "API for managing fuel transactions, stock, and users"
+// //     });
+    
+// //     // Add JWT Authentication to Swagger
+// //     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+// //     {
+// //         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+// //         Name = "Authorization",
+// //         In = ParameterLocation.Header,
+// //         Type = SecuritySchemeType.ApiKey,
+// //         Scheme = "Bearer"
+// //     });
+    
+// //     c.AddSecurityRequirement(new OpenApiSecurityRequirement
+// //     {
+// //         {
+// //             new OpenApiSecurityScheme
+// //             {
+// //                 Reference = new OpenApiReference
+// //                 {
+// //                     Type = ReferenceType.SecurityScheme,
+// //                     Id = "Bearer"
+// //                 }
+// //             },
+// //             Array.Empty<string>()
+// //         }
+// //     });
+// // });
+
+// // // Configure Database
+// // builder.Services.AddDbContext<FMSDbContext>(options =>
+// //     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// // // Configure JWT Authentication
+// // var jwtKey = builder.Configuration["Jwt:Key"];
+// // if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
+// // {
+// //     throw new InvalidOperationException("JWT Key must be at least 32 characters long");
+// // }
+
+// // builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+// //     .AddJwtBearer(options =>
+// //     {
+// //         options.TokenValidationParameters = new TokenValidationParameters
+// //         {
+// //             ValidateIssuer = true,
+// //             ValidateAudience = true,
+// //             ValidateLifetime = true,
+// //             ValidateIssuerSigningKey = true,
+// //             ValidIssuer = builder.Configuration["Jwt:Issuer"],
+// //             ValidAudience = builder.Configuration["Jwt:Audience"],
+// //             IssuerSigningKey = new SymmetricSecurityKey(
+// //                 Encoding.UTF8.GetBytes(jwtKey))
+// //         };
+// //     });
+
+// // // Add CORS
+// // builder.Services.AddCors(options =>
+// // {
+// //     options.AddPolicy("AllowReactApp", policy =>
+// //     {
+// //         policy.WithOrigins("http://localhost:3000", "http://localhost:3001")
+// //               .AllowAnyHeader()
+// //               .AllowAnyMethod()
+// //               .AllowCredentials();
+// //     });
+// // });
+
+// // // Add Authorization
+// // builder.Services.AddAuthorization(options =>
+// // {
+// //     options.AddPolicy("AdminOnly", policy => 
+// //         policy.RequireRole("admin"));
+// //     options.AddPolicy("AdminOrManager", policy => 
+// //         policy.RequireRole("admin", "manager"));
+// // });
+
+// // var app = builder.Build();
+
+// // // Configure the HTTP request pipeline
+// // if (app.Environment.IsDevelopment())
+// // {
+// //     app.UseSwagger();
+// //     app.UseSwaggerUI(c =>
+// //     {
+// //         c.SwaggerEndpoint("/swagger/v1/swagger.json", "FMS API V1");
+// //         c.RoutePrefix = "swagger"; // Makes swagger UI available at /swagger
+// //     });
+// // }
+
+// // app.UseHttpsRedirection();
+// // app.UseCors("AllowReactApp");
+// // app.UseAuthentication();
+// // app.UseAuthorization();
+// // app.MapControllers();
+
+// // // Initialize database
+// // using (var scope = app.Services.CreateScope())
+// // {
+// //     var services = scope.ServiceProvider;
+// //     try
+// //     {
+// //         var context = services.GetRequiredService<FMSDbContext>();
+// //         context.Database.EnsureCreated(); // Creates database if it doesn't exist
+// //         // Alternatively, use migrations:
+// //         // context.Database.Migrate();
+// //     }
+// //     catch (Exception ex)
+// //     {
+// //         var logger = services.GetRequiredService<ILogger<Program>>();
+// //         logger.LogError(ex, "An error occurred while initializing the database.");
+// //     }
+// // }
+
+// // app.Run();
+
 // using Microsoft.EntityFrameworkCore;
+// using Microsoft.AspNetCore.Authentication.JwtBearer;
 // using Microsoft.IdentityModel.Tokens;
-// using Microsoft.OpenApi.Models;
 // using System.Text;
 // using FMS.Data;
+// using FMS.Services;
 
 // var builder = WebApplication.CreateBuilder(args);
 
 // // Add services to the container
 // builder.Services.AddControllers();
 // builder.Services.AddEndpointsApiExplorer();
+// builder.Services.AddSwaggerGen();
 
-// // Configure Swagger/OpenAPI
-// builder.Services.AddSwaggerGen(c =>
-// {
-//     c.SwaggerDoc("v1", new OpenApiInfo { 
-//         Title = "Fuel Management System API", 
-//         Version = "v1",
-//         Description = "API for managing fuel transactions, stock, and users"
-//     });
-    
-//     // Add JWT Authentication to Swagger
-//     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-//     {
-//         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
-//         Name = "Authorization",
-//         In = ParameterLocation.Header,
-//         Type = SecuritySchemeType.ApiKey,
-//         Scheme = "Bearer"
-//     });
-    
-//     c.AddSecurityRequirement(new OpenApiSecurityRequirement
-//     {
-//         {
-//             new OpenApiSecurityScheme
-//             {
-//                 Reference = new OpenApiReference
-//                 {
-//                     Type = ReferenceType.SecurityScheme,
-//                     Id = "Bearer"
-//                 }
-//             },
-//             Array.Empty<string>()
-//         }
-//     });
-// });
-
-// // Configure Database
+// // Database Configuration
 // builder.Services.AddDbContext<FMSDbContext>(options =>
 //     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// // Configure JWT Authentication
-// var jwtKey = builder.Configuration["Jwt:Key"];
-// if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
-// {
-//     throw new InvalidOperationException("JWT Key must be at least 32 characters long");
-// }
+// // Email Service
+// builder.Services.AddScoped<IEmailService, EmailService>();
 
+// builder.Services.AddCors(options =>
+// {
+//     options.AddPolicy("AllowReactApp",
+//         policy =>
+//         {
+//             policy.WithOrigins("http://localhost:3000", "http://localhost:5131")
+//                   .AllowAnyHeader()
+//                   .AllowAnyMethod()
+//                   .AllowCredentials();
+//         });
+// });
+
+// // JWT Authentication
 // builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 //     .AddJwtBearer(options =>
 //     {
@@ -69,30 +179,11 @@
 //             ValidIssuer = builder.Configuration["Jwt:Issuer"],
 //             ValidAudience = builder.Configuration["Jwt:Audience"],
 //             IssuerSigningKey = new SymmetricSecurityKey(
-//                 Encoding.UTF8.GetBytes(jwtKey))
+//                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "DefaultSecretKeyForDevelopment"))
 //         };
 //     });
 
-// // Add CORS
-// builder.Services.AddCors(options =>
-// {
-//     options.AddPolicy("AllowReactApp", policy =>
-//     {
-//         policy.WithOrigins("http://localhost:3000", "http://localhost:3001")
-//               .AllowAnyHeader()
-//               .AllowAnyMethod()
-//               .AllowCredentials();
-//     });
-// });
-
-// // Add Authorization
-// builder.Services.AddAuthorization(options =>
-// {
-//     options.AddPolicy("AdminOnly", policy => 
-//         policy.RequireRole("admin"));
-//     options.AddPolicy("AdminOrManager", policy => 
-//         policy.RequireRole("admin", "manager"));
-// });
+// builder.Services.AddAuthorization();
 
 // var app = builder.Build();
 
@@ -100,36 +191,14 @@
 // if (app.Environment.IsDevelopment())
 // {
 //     app.UseSwagger();
-//     app.UseSwaggerUI(c =>
-//     {
-//         c.SwaggerEndpoint("/swagger/v1/swagger.json", "FMS API V1");
-//         c.RoutePrefix = "swagger"; // Makes swagger UI available at /swagger
-//     });
+//     app.UseSwaggerUI();
 // }
 
-// app.UseHttpsRedirection();
 // app.UseCors("AllowReactApp");
+// app.UseHttpsRedirection();
 // app.UseAuthentication();
 // app.UseAuthorization();
 // app.MapControllers();
-
-// // Initialize database
-// using (var scope = app.Services.CreateScope())
-// {
-//     var services = scope.ServiceProvider;
-//     try
-//     {
-//         var context = services.GetRequiredService<FMSDbContext>();
-//         context.Database.EnsureCreated(); // Creates database if it doesn't exist
-//         // Alternatively, use migrations:
-//         // context.Database.Migrate();
-//     }
-//     catch (Exception ex)
-//     {
-//         var logger = services.GetRequiredService<ILogger<Program>>();
-//         logger.LogError(ex, "An error occurred while initializing the database.");
-//     }
-// }
 
 // app.Run();
 
@@ -146,6 +215,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// 1. Configure CORS FIRST
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy",
+        builder => builder
+            .WithOrigins("http://localhost:3000") // React app
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()
+            .WithExposedHeaders("Access-Control-Allow-Origin"));
+});
 
 // Database Configuration
 builder.Services.AddDbContext<FMSDbContext>(options =>
@@ -182,9 +263,29 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// 2. Use CORS - MUST BE FIRST
+app.UseCors("CorsPolicy");
+
+// 3. Handle OPTIONS requests globally
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method == "OPTIONS")
+    {
+        context.Response.Headers.Append("Access-Control-Allow-Origin", "http://localhost:3000");
+        context.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin, Accept, X-Requested-With");
+        context.Response.Headers.Append("Access-Control-Allow-Credentials", "true");
+        context.Response.Headers.Append("Access-Control-Max-Age", "86400");
+        context.Response.StatusCode = 200;
+        return;
+    }
+    await next();
+});
+
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();

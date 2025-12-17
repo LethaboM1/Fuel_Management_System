@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using FMS.Data;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FMS.Controllers
 {

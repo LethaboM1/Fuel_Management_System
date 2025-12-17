@@ -2,15 +2,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FMS.Data;
 using FMS.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using System.ComponentModel.DataAnnotations;
 
 namespace FMS.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize] 
     public class UsersController : ControllerBase
     {
         private readonly FMSDbContext _context;
@@ -20,105 +19,228 @@ namespace FMS.Controllers
             _context = context;
         }
 
-        // GET: api/users
         [HttpGet]
+        [Authorize(Roles = "admin,manager")]
         public async Task<ActionResult<IEnumerable<object>>> GetUsers()
         {
             var users = await _context.Users
-                .Where(u => u.IsActive)
                 .Select(u => new
                 {
                     u.Id,
                     u.FullName,
-                    u.Email,
+                    u.EmployeeNumber,
                     u.Role,
                     u.Station,
-                    u.CreatedAt
+                    u.CreatedAt,
+                    u.IsActive
                 })
                 .ToListAsync();
 
             return Ok(users);
         }
 
-        // POST: api/users
-        [HttpPost]
-        public async Task<ActionResult<object>> CreateUser(CreateUserRequest request)
+        [HttpGet("{id}")]
+        [Authorize(Roles = "admin,manager")]
+        public async Task<ActionResult<object>> GetUser(int id)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
-            {
-                return BadRequest("User with this email already exists");
-            }
+            var user = await _context.Users
+                .Where(u => u.Id == id)
+                .Select(u => new
+                {
+                    u.Id,
+                    u.FullName,
+                    u.EmployeeNumber,
+                    u.Role,
+                    u.Station,
+                    u.CreatedAt,
+                    u.IsActive
+                })
+                .FirstOrDefaultAsync();
 
-            var user = new User
-            {
-                FullName = request.FullName,
-                Email = request.Email,
-                Role = request.Role,
-                Station = request.Station,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                CreatedAt = DateTime.UtcNow,
-                IsActive = true
-            };
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return Ok(new
-            {
-                user.Id,
-                user.FullName,
-                user.Email,
-                user.Role,
-                user.Station,
-                user.CreatedAt
-            });
-        }
-
-        // PUT: api/users/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
-        {
-            var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
                 return NotFound();
             }
 
-            user.FullName = request.FullName ?? user.FullName;
-            user.Role = request.Role ?? user.Role;
-            user.Station = request.Station ?? user.Station;
+            return Ok(user);
+        }
 
-            if (!string.IsNullOrEmpty(request.Password))
+        [HttpPut("{id}")]
+        [Authorize(Roles = "admin,manager")]
+        public async Task<IActionResult> UpdateUser(int id, UpdateUserRequest request)
+        {
+            // Validate the request
+            if (!ModelState.IsValid)
             {
-                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+                return BadRequest(ModelState);
+            }
+
+            var user = await _context.Users.FindAsync(id);
+            
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            // Check if employee number is being changed and if it already exists
+            if (user.EmployeeNumber != request.EmployeeNumber)
+            {
+                var existingUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.EmployeeNumber == request.EmployeeNumber);
+                
+                if (existingUser != null)
+                {
+                    return BadRequest("Employee number already exists");
+                }
+            }
+
+            // Update user properties
+            user.FullName = request.FullName;
+            user.EmployeeNumber = request.EmployeeNumber;
+            
+            if (!string.IsNullOrEmpty(request.Role))
+            {
+                user.Role = request.Role;
+            }
+            
+            if (!string.IsNullOrEmpty(request.Station))
+            {
+                user.Station = request.Station;
+            }
+            
+            if (request.IsActive.HasValue)
+            {
+                user.IsActive = request.IsActive.Value;
             }
 
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
-                user.Id,
-                user.FullName,
-                user.Email,
-                user.Role,
-                user.Station
+                message = "User updated successfully",
+                user = new
+                {
+                    user.Id,
+                    user.FullName,
+                    user.EmployeeNumber,
+                    user.Role,
+                    user.Station,
+                    user.IsActive
+                }
             });
         }
 
-        // DELETE: api/users/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
+            
             if (user == null)
             {
                 return NotFound();
             }
 
+            // Soft delete - mark as inactive instead of removing
             user.IsActive = false;
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { message = "User deactivated successfully" });
         }
+
+        [HttpGet("profile")]
+        public async Task<ActionResult<object>> GetProfile()
+        {
+            // Get current user from JWT token
+            var employeeNumber = User.FindFirst("EmployeeNumber")?.Value;
+            
+            if (string.IsNullOrEmpty(employeeNumber))
+            {
+                return Unauthorized();
+            }
+
+            var user = await _context.Users
+                .Where(u => u.EmployeeNumber == employeeNumber && u.IsActive)
+                .Select(u => new
+                {
+                    u.Id,
+                    u.FullName,
+                    u.EmployeeNumber,
+                    u.Role,
+                    u.Station,
+                    u.CreatedAt
+                })
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(user);
+        }
+
+        [HttpPut("profile")]
+        public async Task<IActionResult> UpdateProfile(UpdateProfileRequest request)
+        {
+            // Get current user from JWT token
+            var employeeNumber = User.FindFirst("EmployeeNumber")?.Value;
+            
+            if (string.IsNullOrEmpty(employeeNumber))
+            {
+                return Unauthorized();
+            }
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.EmployeeNumber == employeeNumber && u.IsActive);
+
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            // Validate request
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            // Update allowed fields (users can only update their name and station, not role or employee number)
+            if (!string.IsNullOrEmpty(request.FullName))
+            {
+                user.FullName = request.FullName;
+            }
+            
+            if (!string.IsNullOrEmpty(request.Station))
+            {
+                user.Station = request.Station;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Profile updated successfully",
+                user = new
+                {
+                    user.Id,
+                    user.FullName,
+                    user.EmployeeNumber,
+                    user.Role,
+                    user.Station,
+                    user.CreatedAt
+                }
+            });
+        }
+    }
+
+    // Add this model for profile updates (users can't change their own role or employee number)
+    public class UpdateProfileRequest
+    {
+        [MaxLength(100)]
+        public string? FullName { get; set; }
+        
+        [MaxLength(100)]
+        public string? Station { get; set; }
     }
 }
